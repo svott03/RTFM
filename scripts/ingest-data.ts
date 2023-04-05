@@ -5,6 +5,10 @@ import { pinecone } from '@/utils/pinecone-client';
 import { PDFLoader } from 'langchain/document_loaders';
 import { PINECONE_INDEX_NAME, PINECONE_NAME_SPACE } from '@/config/pinecone';
 
+// put different documents into different namespaces
+// store firebase data on the namespaces
+// Test semantic search
+
 /* Name of directory to retrieve files from. You can change this as required */
 const filePath = 'docs/Oscilloscope.pdf';
 

@@ -4,6 +4,12 @@ import { PineconeStore } from 'langchain/vectorstores';
 import { makeChain } from '@/utils/makechain';
 import { pinecone } from '@/utils/pinecone-client';
 import { PINECONE_INDEX_NAME, PINECONE_NAME_SPACE } from '@/config/pinecone';
+import { chunkArray } from 'langchain/dist/util';
+import { OpenAI } from 'langchain';
+
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
 
 export default async function handler(
   req: NextApiRequest,
@@ -26,6 +32,19 @@ export default async function handler(
     'text',
     PINECONE_NAME_SPACE, //optional
   );
+
+  // console.log("Before");
+  // try {
+  // const search_res = await vectorStore.similaritySearch("What are wave forms", 4);
+  // console.log("Search Results ----------------------------");
+  // for (let i = 0; i < search_res.length; ++i) {
+  //   console.log(search_res[i].pageContent);
+  //   console.log(search_res[i].metadata);
+  // }
+  // console.log("-------------------------------------------");
+  // } catch (error) {
+  //   console.log('error', error);
+  // }
 
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -51,9 +70,9 @@ export default async function handler(
       chat_history: history || [],
     });
 
-    console.log('response', response);
     sendData(JSON.stringify({ sourceDocs: response.sourceDocuments }));
   } catch (error) {
+    console.log("Error----------------------");
     console.log('error', error);
   } finally {
     sendData('[DONE]');

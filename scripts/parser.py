@@ -2,8 +2,59 @@ import fitz
 from operator import itemgetter
 import openai
 import time
-import backoff
+from pymongo import MongoClient
+import os
 
+
+def insert_into_db(acceptable_templates, outputs, doc_name):
+  db = get_database()
+  # Insert collections
+  print("Doc Name: ", doc_name[8:])
+  collection_name = db[doc_name[8:]]
+  print("size of acceptable_templates: %d", len(acceptable_templates))
+  print("size of outputs: %d", len(outputs))
+  # len of outputs should be 1
+  for index, elem in enumerate(outputs):
+    cur_collection = []
+    for j, chunk in enumerate(elem):
+      
+      # extract header
+      print("LEN OF Template",len(acceptable_templates[index]))
+      # print("Template: ", acceptable_templates[index][j])
+      header_end = acceptable_templates[index][j].find('|')
+      if (header_end != -1):
+        header = acceptable_templates[index][j][4:header_end]
+      else:
+        header = acceptable_templates[index][j][4:]
+      print("HEADER-------------: ", header)
+      print("Inserting Chunk---------------------------", j)
+      # print(chunk)
+      res = {
+        "header" : header,
+        "chunk" : chunk
+      }
+      print("RES------------------------")
+      # print(res)
+      cur_collection.append(res)
+      collection_name.insert_one(res)
+      
+
+  # item_1 = {"id" : "Value"}
+  # item_2 = {"id": "Value2"}
+  # collection_name.insert_many([item_1, item_2])
+  print("Inserted into collection")
+  # extract header
+
+
+def get_database():
+  # Provide the mongodb atlas url to connect python to mongodb using pymongo
+   CONNECTION_STRING = os.environ['PYTHON_MONGO']
+
+   # Create a connection using MongoClient. You can import MongoClient or use pymongo.MongoClient
+   client = MongoClient(CONNECTION_STRING)
+
+   # Create the database for our example (we will use the same database throughout the tutorial
+   return client['LavaLabDB']
 
 def isclose(a, b, rel_tol=1e-09, abs_tol=0.0):
     return abs(a-b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
@@ -181,36 +232,32 @@ def grab_chunks(text_bodies, header, result, tag_index):
     text_bodies.append(last_chunk_string)
 
 
-# @backoff.on_exception(backoff.expo, openai.error.RateLimitError)
-# def completions_with_backoff(**kwargs):
-#     return openai.Completion.create(**kwargs)
-
-
-# completions_with_backoff(model="text-davinci-003", prompt="Once upon a time,")
-
 
 def send_prompts(acceptable_templates, headers_used, outputs):
     st = time.time()
     # Right now, simply output the first 10 for <h2>
-    t = 0
     for index, elem in enumerate(acceptable_templates):
-        if (t == 0):
-            t += 1
-            continue
         print("On header", headers_used[index])
         print("We have ", len(elem), "text chunks")
+        print("Acceptable_templates len ", len(acceptable_templates))
         print("Querying GPT")
         cur_output = []
-        for i, chunk in enumerate(elem):
-            if (i == 3):
-                break
-
-            print("On Chunk", i, "-------------")
+        offset = 0
+        for i, chunk2 in enumerate(elem):
+            if ((i + offset) == len(elem)):
+              break
+            chunk = elem[i + offset]
+            print("On Chunk", i, "-------------", len(elem), " Offset: ", offset)
+            # print(chunk)
             # Catching exceptions (timeout, remote disconnection, bad gateway)
 
             # token limit
             if (len(chunk) > (4097 - 1080)):
                 for k in range(0, len(chunk), 4097-1080):
+                    # insert original chunk into acceptable_templates to extract the header later
+                    if (k > 0):
+                      acceptable_templates[index].insert(i,chunk)
+                      offset += 1
                     inference_not_done = True
                     while (inference_not_done):
                         try:
@@ -251,13 +298,14 @@ def send_prompts(acceptable_templates, headers_used, outputs):
     elapsed_time = et - st
     print('Execution time:', elapsed_time, 'seconds')
 
-
 def parse_documention(document):
     # doc = fitz.open('Oscilloscope.pdf')
     doc = fitz.open(document)
     font_counts, styles = fonts(doc, granularity=False)
     size_tag = font_tags(font_counts, styles)
     result = headers_para(doc, size_tag, font_counts)
+    # print("result-----------------------------")
+    # print(result)
     headers = find_subheading(font_counts, size_tag)
     tag_index = []
 
@@ -275,7 +323,9 @@ def parse_documention(document):
     print("PAGE COUNT", page_count)
     for header, count in headers:
         # accept headers if 10% of pages <= count <= 2 * pages
-        if (count >= int(page_count/10) and count <= 1.5 * page_count):
+        # FIX: only accepting specific headers
+        if (count >= int(page_count/10) and count <= 1.5 * page_count and header == "<h2>"):
+            print("Header-------------------------------------", header)
             text_bodies = []
             # grab chunks of text for page_count
             grab_chunks(text_bodies, header, result, tag_index)
@@ -287,9 +337,23 @@ def parse_documention(document):
     send_prompts(acceptable_templates, headers_used, outputs)
 
     print('Here are the outputs for <h2>')
+    print('Len of H2 is ', len(outputs[0]))
     result = []
     for i in range(0, len(outputs[0])):
         print('Chunk', i, '------------------------------------------------')
-        print(outputs[0][i]['choices'][0]['message']['content'])
+        outputs[0][i] = outputs[0][i]['choices'][0]['message']['content']
+        # print(outputs[0][i])
     
+    # acceptable_templates holds lists of chunk strings for each header || outputs [html] for each acceptable template
+    # store each acceptable template inside firebase
+    # DB, Collection for each manual (iterate over all collections), each collection contains header, text
+    # Parse text for subheaders? for display
+
+    insert_into_db(acceptable_templates, outputs, document)
+
+
     return result
+
+# insert_into_db([], [], 'Oscilloscope.pdf')
+parse_documention('../docs/Oscilloscope.pdf')
+# store header page numbers
