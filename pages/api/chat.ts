@@ -69,6 +69,8 @@ export default async function handler(
       question: sanitizedQuestion,
       chat_history: history || [],
     });
+    console.log("RESPONSE--------------------------------")
+    console.log(response)
 
     sendData(JSON.stringify({ sourceDocs: response.sourceDocuments }));
   } catch (error) {

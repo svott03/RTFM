@@ -356,4 +356,12 @@ def parse_documention(document):
 
 # insert_into_db([], [], 'Oscilloscope.pdf')
 parse_documention('../docs/Oscilloscope.pdf')
+
+
 # store header page numbers
+
+# Remove |
+
+# Remove <> tags ?
+
+

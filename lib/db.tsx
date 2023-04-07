@@ -38,6 +38,9 @@ export async function connectToDatabase() {
   let headers = [];
   for (let i = 0; i < docs.length; ++i) {
     let header_with_tag = "<h1>" + docs[i].header + "</h1>";
+    // let parsed_chunk = docs[i].chunk;
+    // // remove header tags
+    // for (int j = 0; j <)
     headers.push(header_with_tag);
     chunks.push(docs[i].chunk);
   }
