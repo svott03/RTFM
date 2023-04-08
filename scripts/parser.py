@@ -242,8 +242,6 @@ def send_prompts(acceptable_templates, headers_used, outputs, myHeaders):
 
         # clean up
         for i, chunk in enumerate(elem):
-            if i == 1:
-              break
             # Remove all tags
             chunk = remove_tags(chunk)
             print("On Chunk", i, "-------------", len(elem), len(chunk))

@@ -48,7 +48,7 @@ def ingest_docs(filename):
     chunkSize = 50
     for i in range(0,len(documents), chunkSize):
       chunk = documents[i:i+chunkSize]
-      print(chunk)
+      # print(chunk)
       print("TYPE--------------------------------------")
       print(type(chunk))
       docsearch = Pinecone.from_documents(
