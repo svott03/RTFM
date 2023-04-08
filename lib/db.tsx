@@ -46,10 +46,13 @@ export async function connectToDatabase() {
   console.log(chunks[0]);
   console.log(`Successfully connected to database: ${db.databaseName} and collection: ${myCollection.collectionName}`);
   var text = "";
+  let count = 0;
   for (let i = 0; i < chunks.length; ++i) {
     text += headers[i];
     text += chunks[i];
+    text += '<br>'
   }
+  text = text.replaceAll('\n', '<br>')
   console.log("TEXT IS" + text);
   return '<div class="homepage">' + text + 'This is the homepage data</div>'
 }
