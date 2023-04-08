@@ -1,7 +1,3 @@
-"""Load html from files, clean up, split, ingest into Weaviate."""
-import pickle
-
-from langchain.document_loaders import PyMuPDFLoader
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import Pinecone
@@ -36,7 +32,6 @@ class PyPDFLoader:
 
 
 def ingest_docs(filename):
-    # loader = PyMuPDFLoader("../docs/Oscilloscope.pdf")
     loader = PyPDFLoader(filename)
     raw_documents = loader.load_and_split()
     text_splitter = RecursiveCharacterTextSplitter(
@@ -63,7 +58,6 @@ def ingest_docs(filename):
 
     print("Data uploaded-----------------------")
     # print(docsearch)
-
 
 
 ingest_docs('../docs/Oscilloscope.pdf')

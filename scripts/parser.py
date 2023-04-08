@@ -4,46 +4,37 @@ import openai
 import time
 from pymongo import MongoClient
 import os
+import re
 
 
-def insert_into_db(acceptable_templates, outputs, doc_name):
+def remove_tags(chunk):
+  pattern = r'<\|\|\|[a-z0-9]*>'
+  output_str = re.sub(pattern, '', chunk)
+  # print("REGEX OUTPUT----------------------")
+  # print(output_str)
+  return output_str
+
+
+def insert_into_db(acceptable_templates, outputs, doc_name, myHeader):
   db = get_database()
   # Insert collections
   print("Doc Name: ", doc_name[8:])
   collection_name = db[doc_name[8:]]
-  print("size of acceptable_templates: %d", len(acceptable_templates))
-  print("size of outputs: %d", len(outputs))
+  print("size of acceptable_templates: ", len(acceptable_templates))
+  print("size of outputs: ", len(outputs))
   # len of outputs should be 1
   for index, elem in enumerate(outputs):
-    cur_collection = []
     for j, chunk in enumerate(elem):
-      
-      # extract header
-      print("LEN OF Template",len(acceptable_templates[index]))
-      # print("Template: ", acceptable_templates[index][j])
-      header_end = acceptable_templates[index][j].find('|')
-      if (header_end != -1):
-        header = acceptable_templates[index][j][4:header_end]
-      else:
-        header = acceptable_templates[index][j][4:]
+      header = chunk[1]
       print("HEADER-------------: ", header)
       print("Inserting Chunk---------------------------", j)
-      # print(chunk)
+      # print(chunk[0])
       res = {
         "header" : header,
-        "chunk" : chunk
+        "chunk" : chunk[0],
       }
-      print("RES------------------------")
-      # print(res)
-      cur_collection.append(res)
       collection_name.insert_one(res)
-      
-
-  # item_1 = {"id" : "Value"}
-  # item_2 = {"id": "Value2"}
-  # collection_name.insert_many([item_1, item_2])
   print("Inserted into collection")
-  # extract header
 
 
 def get_database():
@@ -56,8 +47,6 @@ def get_database():
    # Create the database for our example (we will use the same database throughout the tutorial
    return client['LavaLabDB']
 
-def isclose(a, b, rel_tol=1e-09, abs_tol=0.0):
-    return abs(a-b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
 
 
 def fonts(doc, granularity=False):
@@ -125,11 +114,11 @@ def font_tags(font_counts, styles):
         idx += 1
         if size == p_size:
             idx = 0
-            size_tag[size] = '<p>'
+            size_tag[size] = '<|||p0>'
         if size > p_size:
-            size_tag[size] = '<h{0}>'.format(idx)
+            size_tag[size] = '<|||h{0}>'.format(idx)
         elif size < p_size:
-            size_tag[size] = '<s{0}>'.format(idx)
+            size_tag[size] = '<|||s{0}>'.format(idx)
 
     return size_tag
 
@@ -188,7 +177,7 @@ def headers_para(doc, size_tag, font_counts):
                                 previous_s = s
 
                     # new block started, indicating with a pipe
-                    block_string += "|"
+                    # block_string += "|"
 
                 header_para.append(block_string)
     for index, elem in enumerate(font_counts):
@@ -208,7 +197,7 @@ def find_subheading(font_counts, size_tag):
     return headers
 
 
-def grab_chunks(text_bodies, header, result, tag_index):
+def grab_chunks(text_bodies, header, result, tag_index, myHeaders):
     spots = []
     for heading, index in tag_index:
         if (heading == header):
@@ -226,50 +215,54 @@ def grab_chunks(text_bodies, header, result, tag_index):
         # TODO parse out chunks of size less than 50words * 4 chars = 200 chars ?
         if (len(chunk_string) > 200):
             text_bodies.append(chunk_string)
+            # Add header
+            myHeaders.append(result[elem])
     last_chunk = result[spots[len(spots) - 1]:]
     last_chunk_string = ' '.join(map(str, last_chunk))
+    myHeaders.append(spots[len(spots) - 1])
     # May not want to include this string
     text_bodies.append(last_chunk_string)
+    # print("TEXTBODIES----------------------")
+    # print(text_bodies)
+    # print(myHeaders)
+    # print(len(myHeaders))
+    # print(len(text_bodies))
 
 
 
-def send_prompts(acceptable_templates, headers_used, outputs):
+def send_prompts(acceptable_templates, headers_used, outputs, myHeaders):
     st = time.time()
-    # Right now, simply output the first 10 for <h2>
+
     for index, elem in enumerate(acceptable_templates):
         print("On header", headers_used[index])
         print("We have ", len(elem), "text chunks")
-        print("Acceptable_templates len ", len(acceptable_templates))
+        print("Acceptable_templates len", len(acceptable_templates))
         print("Querying GPT")
         cur_output = []
-        offset = 0
-        for i, chunk2 in enumerate(elem):
-            if ((i + offset) == len(elem)):
-              break
-            chunk = elem[i + offset]
-            print("On Chunk", i, "-------------", len(elem), " Offset: ", offset)
-            # print(chunk)
-            # Catching exceptions (timeout, remote disconnection, bad gateway)
 
+        # clean up
+        for i, chunk in enumerate(elem):
+            if i == 1:
+              break
+            # Remove all tags
+            chunk = remove_tags(chunk)
+            print("On Chunk", i, "-------------", len(elem), len(chunk))
+            header = remove_tags(myHeaders[i])
             # token limit
             if (len(chunk) > (4097 - 1080)):
                 for k in range(0, len(chunk), 4097-1080):
-                    # insert original chunk into acceptable_templates to extract the header later
-                    if (k > 0):
-                      acceptable_templates[index].insert(i,chunk)
-                      offset += 1
                     inference_not_done = True
+                    # Catching exceptions (timeout, remote disconnection, bad gateway)
                     while (inference_not_done):
                         try:
                             prompt = "I will give you a page of hardware documentation from an electric engineering manual. I want you to make some new documentation inspired by software documentation's simple and relatively easy to read layout."
-                            prompt += "\n" + \
-                                chunk[k:min(len(chunk), k + (4097-1080))]
+                            prompt += "\n" + chunk[k:min(len(chunk), k + (4097-1080))]
                             completion = openai.ChatCompletion.create(
                                 model="gpt-3.5-turbo",
                                 messages=[{"role": "user", "content": prompt}],
                                 max_tokens=1024,
-                                temperature=0.8)
-                            cur_output.append(completion)
+                                temperature=0.8)['choices'][0]['message']['content']
+                            cur_output.append((completion, header))
                             inference_not_done = False
                         except Exception as e:
                             print(f"Waiting 5 minutes")
@@ -277,6 +270,7 @@ def send_prompts(acceptable_templates, headers_used, outputs):
                             time.sleep(300)
             else:
                 inference_not_done = True
+                # Catching exceptions (timeout, remote disconnection, bad gateway)
                 while (inference_not_done):
                     try:
                         prompt = "I will give you a page of hardware documentation from an electric engineering manual. I want you to make some new documentation inspired by software documentation's simple and relatively easy to read layout."
@@ -285,8 +279,8 @@ def send_prompts(acceptable_templates, headers_used, outputs):
                             model="gpt-3.5-turbo",
                             messages=[{"role": "user", "content": prompt}],
                             max_tokens=1024,
-                            temperature=0.8)
-                        cur_output.append(completion)
+                            temperature=0.8)['choices'][0]['message']['content']
+                        cur_output.append((completion,header))
                         inference_not_done = False
                         # print(completion)
                     except Exception as e:
@@ -294,12 +288,13 @@ def send_prompts(acceptable_templates, headers_used, outputs):
                         print(f"Error was: {e}")
                         time.sleep(300)
         outputs.append(cur_output)
+        # print("Cur_output----------------------------")
+        # print(cur_output)
     et = time.time()
     elapsed_time = et - st
     print('Execution time:', elapsed_time, 'seconds')
 
 def parse_documention(document):
-    # doc = fitz.open('Oscilloscope.pdf')
     doc = fitz.open(document)
     font_counts, styles = fonts(doc, granularity=False)
     size_tag = font_tags(font_counts, styles)
@@ -308,7 +303,7 @@ def parse_documention(document):
     # print(result)
     headers = find_subheading(font_counts, size_tag)
     tag_index = []
-
+    
     for index, chunk in enumerate(result):
         if (len(chunk) > 0):
             if chunk[0] == "<":
@@ -319,49 +314,31 @@ def parse_documention(document):
 
     # We can output based on <h5>, <h7> is the most popular <h346> are negligible, <h2> is nice
     headers_used = []
+    # myHeaders holds headers for each chunk
+    myHeaders = []
 
     print("PAGE COUNT", page_count)
     for header, count in headers:
         # accept headers if 10% of pages <= count <= 2 * pages
         # FIX: only accepting specific headers
-        if (count >= int(page_count/10) and count <= 1.5 * page_count and header == "<h2>"):
-            print("Header-------------------------------------", header)
+        if (count >= int(page_count/10) and count <= 1.5 * page_count and header == "<|||h2>"):
             text_bodies = []
             # grab chunks of text for page_count
-            grab_chunks(text_bodies, header, result, tag_index)
+            grab_chunks(text_bodies, header, result, tag_index, myHeaders)
+
             acceptable_templates.append(text_bodies)
             headers_used.append(header)
 
     print("Headers used:", headers_used)
     outputs = []
-    send_prompts(acceptable_templates, headers_used, outputs)
-
-    print('Here are the outputs for <h2>')
-    print('Len of H2 is ', len(outputs[0]))
-    result = []
-    for i in range(0, len(outputs[0])):
-        print('Chunk', i, '------------------------------------------------')
-        outputs[0][i] = outputs[0][i]['choices'][0]['message']['content']
-        # print(outputs[0][i])
     
+    # Retrieve GPT Outputs
+    send_prompts(acceptable_templates, headers_used, outputs, myHeaders)
     # acceptable_templates holds lists of chunk strings for each header || outputs [html] for each acceptable template
-    # store each acceptable template inside firebase
-    # DB, Collection for each manual (iterate over all collections), each collection contains header, text
-    # Parse text for subheaders? for display
-
-    insert_into_db(acceptable_templates, outputs, document)
+    insert_into_db(acceptable_templates, outputs, document, myHeaders)
 
 
-    return result
-
-# insert_into_db([], [], 'Oscilloscope.pdf')
 parse_documention('../docs/Oscilloscope.pdf')
 
 
-# store header page numbers
-
-# Remove |
-
-# Remove <> tags ?
-
-
+# TODO store header page numbers?
