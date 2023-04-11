@@ -219,18 +219,17 @@ def grab_chunks(text_bodies, header, result, tag_index, myHeaders):
             myHeaders.append(result[elem])
     last_chunk = result[spots[len(spots) - 1]:]
     last_chunk_string = ' '.join(map(str, last_chunk))
-    myHeaders.append(spots[len(spots) - 1])
+    myHeaders.append(result[spots[len(spots) - 1]])
     # May not want to include this string
     text_bodies.append(last_chunk_string)
     # print("TEXTBODIES----------------------")
     # print(text_bodies)
-    # print(myHeaders)
-    # print(len(myHeaders))
-    # print(len(text_bodies))
 
 
 
-def send_prompts(acceptable_templates, headers_used, outputs, myHeaders):
+def send_prompts(acceptable_templates, headers_used, outputs, myHeaders, doc_name):
+    db = get_database()
+    collection_name = db[doc_name[8:]]
     st = time.time()
 
     for index, elem in enumerate(acceptable_templates):
@@ -239,8 +238,6 @@ def send_prompts(acceptable_templates, headers_used, outputs, myHeaders):
         print("Acceptable_templates len", len(acceptable_templates))
         print("Querying GPT")
         cur_output = []
-
-        # clean up
         for i, chunk in enumerate(elem):
             # Remove all tags
             chunk = remove_tags(chunk)
@@ -261,6 +258,13 @@ def send_prompts(acceptable_templates, headers_used, outputs, myHeaders):
                                 max_tokens=1024,
                                 temperature=0.8)['choices'][0]['message']['content']
                             cur_output.append((completion, header))
+                            # insert into db
+                            res = {
+                                "header": header,
+                                "chunk": completion,
+                            }
+                            collection_name.insert_one(res)
+                            print("Inserted into collection")
                             inference_not_done = False
                         except Exception as e:
                             print(f"Waiting 5 minutes")
@@ -279,6 +283,13 @@ def send_prompts(acceptable_templates, headers_used, outputs, myHeaders):
                             max_tokens=1024,
                             temperature=0.8)['choices'][0]['message']['content']
                         cur_output.append((completion,header))
+                        # insert into db
+                        res = {
+                            "header": header,
+                            "chunk": completion,
+                        }
+                        collection_name.insert_one(res)
+                        print("Inserted into collection")
                         inference_not_done = False
                         # print(completion)
                     except Exception as e:
@@ -286,8 +297,6 @@ def send_prompts(acceptable_templates, headers_used, outputs, myHeaders):
                         print(f"Error was: {e}")
                         time.sleep(300)
         outputs.append(cur_output)
-        # print("Cur_output----------------------------")
-        # print(cur_output)
     et = time.time()
     elapsed_time = et - st
     print('Execution time:', elapsed_time, 'seconds')
@@ -331,9 +340,9 @@ def parse_documention(document):
     outputs = []
     
     # Retrieve GPT Outputs
-    send_prompts(acceptable_templates, headers_used, outputs, myHeaders)
+    send_prompts(acceptable_templates, headers_used, outputs, myHeaders, document)
     # acceptable_templates holds lists of chunk strings for each header || outputs [html] for each acceptable template
-    insert_into_db(acceptable_templates, outputs, document, myHeaders)
+    # insert_into_db(acceptable_templates, outputs, document, myHeaders)
 
 
 parse_documention('../docs/Oscilloscope.pdf')

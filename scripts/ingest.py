@@ -61,3 +61,6 @@ def ingest_docs(filename):
 
 
 ingest_docs('../docs/Oscilloscope.pdf')
+
+# Namespaces
+# ../docs/Oscilloscope.pdf
