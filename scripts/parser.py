@@ -258,6 +258,8 @@ def send_prompts(acceptable_templates, headers_used, outputs, myHeaders, doc_nam
                                 max_tokens=1024,
                                 temperature=0.8)['choices'][0]['message']['content']
                             cur_output.append((completion, header))
+                            # print("Cur_output--------------------------------")
+                            # print(cur_output)
                             # insert into db
                             res = {
                                 "header": header,
@@ -283,6 +285,8 @@ def send_prompts(acceptable_templates, headers_used, outputs, myHeaders, doc_nam
                             max_tokens=1024,
                             temperature=0.8)['choices'][0]['message']['content']
                         cur_output.append((completion,header))
+                        # print("Cur_output--------------------------------")
+                        # print(cur_output)
                         # insert into db
                         res = {
                             "header": header,
@@ -306,9 +310,8 @@ def parse_documention(document):
     font_counts, styles = fonts(doc, granularity=False)
     size_tag = font_tags(font_counts, styles)
     result = headers_para(doc, size_tag, font_counts)
-    # print("result-----------------------------")
-    # print(result)
     headers = find_subheading(font_counts, size_tag)
+    print(headers)
     tag_index = []
     
     for index, chunk in enumerate(result):
@@ -328,7 +331,8 @@ def parse_documention(document):
     for header, count in headers:
         # accept headers if 10% of pages <= count <= 2 * pages
         # FIX: only accepting specific headers
-        if (count >= int(page_count/10) and count <= 1.5 * page_count and header == "<|||h2>"):
+        # count >= int(page_count/10) and count <= 1.5 * page_count range
+        if (header == "<|||h3>"):
             text_bodies = []
             # grab chunks of text for page_count
             grab_chunks(text_bodies, header, result, tag_index, myHeaders)
@@ -345,7 +349,7 @@ def parse_documention(document):
     # insert_into_db(acceptable_templates, outputs, document, myHeaders)
 
 
-parse_documention('../docs/Oscilloscope.pdf')
+parse_documention('../docs/Rigol.pdf')
 
 
 # TODO store header page numbers?
