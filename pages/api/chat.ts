@@ -15,7 +15,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
-  const { question, history } = req.body;
+  // document = pineconeDocument
+  const { question, history/*, document*/ } = req.body;
 
   if (!question) {
     return res.status(400).json({ message: 'No question in the request' });
@@ -30,21 +31,21 @@ export default async function handler(
     index,
     new OpenAIEmbeddings({}),
     'text',
-    PINECONE_NAME_SPACE, //optional
+    PINECONE_NAME_SPACE, // TODO becomes document
   );
 
-  // console.log("Before");
-  // try {
-  // const search_res = await vectorStore.similaritySearch("What are wave forms", 4);
-  // console.log("Search Results ----------------------------");
-  // for (let i = 0; i < search_res.length; ++i) {
-  //   console.log(search_res[i].pageContent);
-  //   console.log(search_res[i].metadata);
-  // }
-  // console.log("-------------------------------------------");
-  // } catch (error) {
-  //   console.log('error', error);
-  // }
+  console.log("Before");
+  try {
+  const search_res = await vectorStore.similaritySearch("Term for pulse width to period ratio", 2);
+  console.log("Search Results ----------------------------");
+  for (let i = 0; i < search_res.length; ++i) {
+    console.log(search_res[i].pageContent);
+    console.log(search_res[i].metadata);
+  }
+  console.log("-------------------------------------------");
+  } catch (error) {
+    console.log('error', error);
+  }
 
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',

@@ -81,9 +81,11 @@ export default function Home() {
         headers: {
           'Content-Type': 'application/json',
         },
+        // document = pinecone Document
         body: JSON.stringify({
           question,
-          history,
+          history
+          // document,
         }),
         signal: ctrl.signal,
         onmessage: (event) => {

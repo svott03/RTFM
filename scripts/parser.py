@@ -349,7 +349,7 @@ def parse_documention(document):
     # insert_into_db(acceptable_templates, outputs, document, myHeaders)
 
 
-parse_documention('../docs/Rigol.pdf')
+parse_documention('../docs/Atmega328P2.pdf')
 
 
 # TODO store header page numbers?

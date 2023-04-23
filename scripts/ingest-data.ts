@@ -8,11 +8,6 @@ import CustomPDFLoader from "../lib/CustomPDFLoader";
 import * as path from 'path';
 
 
-// put different documents into different namespaces
-// store firebase data on the namespaces
-// Test semantic search
-// TODO add page numbers to sources
-
 /* Name of directory to retrieve files from. You can change this as required */
 const filePath = '../docs/Oscilloscope.pdf';
 
@@ -22,7 +17,7 @@ export const run = async () => {
     // const loader = new TextLoader(filePath);
     // const loader = new PDFLoader(filePath);
     
-    console.log("RawDocs---------------------------------------")
+    console.log("RawDocs---------------------------------------");
     const myLoader = new CustomPDFLoader(filePath);
     const rawDocs = await myLoader.loadAndSplit();
     console.log(rawDocs[0]);

@@ -15,9 +15,9 @@ export class Chunk {
 };
 
 
-export async function connectToDatabase() {
+export async function connectToDatabase(document: string) {
   const DB_CONN_STRING = 'mongodb+srv://svott:Mongo1234@cluster0.v1wrvyg.mongodb.net/?retryWrites=true&w=majority';
-  const COLLECTION_NAME = 'Oscilloscope.pdf';
+  const COLLECTION_NAME = document;
   const DB_NAME = 'LavaLabDB';
   // const DB_CONN_STRING = process.env.DB_CONN_STRING;
   // const COLLECTION_NAME = process.env.COLLECTION_NAME;
@@ -36,6 +36,8 @@ export async function connectToDatabase() {
   const docs = (await collections.chunks.find({}).toArray());
   let chunks = [];
   let headers = [];
+  console.log("Header size: " + headers.length);
+  console.log("Chumks size: " + chunks.length);
   for (let i = 0; i < docs.length; ++i) {
     let header_with_tag = "<h1><strong>" + docs[i].header + "</strong></h1>";
     headers.push(header_with_tag);
@@ -50,7 +52,9 @@ export async function connectToDatabase() {
   for (let i = 0; i < chunks.length; ++i) {
     text += headers[i];
     text += chunks[i];
-    text += '<br>'
+    if (text.length > 0) {
+      text += '<br>'
+    }
   }
   text = text.replaceAll('\n', '<br>')
   console.log("TEXT IS" + text);
